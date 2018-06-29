@@ -13,57 +13,54 @@
 // ************************
 // run on first load;
 // ************************
-var trans = loadTrans();
-
-// low-level finder
-exports.find = function(name) {
-  var rtn, i, x;
- 
-  rtn = null;
-  for(i=0,x=trans.length;i<x;i++) {
-    if(trans[i].name===name) {
-      rtn = trans[i];
-      break;
-    }
+const trans = loadTrans();
+const transDict = trans.reduce(
+  function(acc, tran) {
+    acc[tran['name']] = tran;
+    return acc;
   }
-
-  return rtn;
-}
+);
+// low-level finder: return a copy of the transaction object
+exports.find = function(name) {
+  const found = transDict[name];
+  if (!found) { return null; }
+  return Object.assign({}, found);
+};
 
 // make a base transition
 // object = {name,href,rel[],root}
 exports.make = function(object) {
-  var rtn, name, rel, href, root;
-  
-  if(!object.name || object.name===null || object.name==="") {
-    rtn = null;
+  const name = object.name;
+
+  if(!name || name===null || name==="") {
+    return null;
+  }
+
+  const root = object.root || "";
+  const href = object.href || "#";
+  const rel = object.rel || "";
+
+  var tran = this.find(object.name);
+
+  if(tran === null) {
+    return null;
+  }
+
+  tran.href = root + href;
+
+  if(Array.isArray(rel) === true) {
+    tran.rel = rel.map(
+      function(r) {
+        return (r.indexOf('/') === 0 ? root + r : r);
+      }
+    );
   }
   else {
-    name = object.name;
-    root = object.root||"";
-    href = object.href||"#";
-    rel = object.rel||"";
-    
-    tran = this.find(name);
-    if(tran!==null) {
-      rtn = tran;
-      rtn.href = root + href;
-      rtn.rel = [];
-      if(Array.isArray(rel)===true) {
-        for(i=0,x=rel.length;i<x;i++) {
-          rtn.rel.push((rel[i].indexOf('/')===0?root+rel[i]:rel[i]));
-        }        
-      }
-      else {
-        rtn.rel.push((rel.indexOf('/')===0?root+rel:rel));
-      }
-    }
-    else {
-      rtn = null;
-    }
+    tran.rel = (rel.indexOf('/') === 0 ? root + rel : rel);
   }
-  return rtn;
-}
+
+  return tran;
+};
 
 // append a base transition to a collection
 exports.append = function(object, coll) {
@@ -74,63 +71,46 @@ exports.append = function(object, coll) {
     coll.splice(coll.length, 0, trans);
   }
   return coll;
-}
-
-// NOT USED
-exports.findByTarget = function(val) {
-  var coll, i, x;
- 
-  coll = [];
-  for(i=0,x=trans.length;i<x;i++) {
-    if(trans[i].target && trans[i].target.indexOf(val)!==-1) {
-      coll.push(trans[i]);
-    }
-  }
- 
-  return coll;
-}
+};
 
 exports.all = function all() {
-  return trans;
-}
+  // Expose a copy
+  return loadTrans();
+};
 
 // internal filling routine
 function loadTrans() {
-  var trans;
-  trans = [];
+  return [
 
   /************************************
   HOME
   *************************************/
-  trans.push({
+  {
     name : "homeLink",
     type : "safe",
     action : "read",
     kind : "home",
     target : "list menu",
     prompt : "Home"
-  });
-  trans.push({
+  }, {
     name : "taskLink",
     type : "safe",
     action : "read",
     kind : "task",
     target : "list menu",
     prompt : "Tasks"
-  });  
-  trans.push({
+  }, {
     name : "userLink",
     type : "safe",
     action : "read",
     kind : "user",
     target : "list menu",
     prompt : "Users"
-  });
-
+  },
   /************************************
   TASKS
   *************************************/
-  trans.push({
+  {
     name : "taskFormListActive",
     type : "safe",
     action : "read",
@@ -140,8 +120,7 @@ function loadTrans() {
     inputs : [
       {name : "completeFlag", prompt : "Complete", value : "false", readOnly:true}
     ]
-  });
-  trans.push({
+  }, {
     name : "taskFormListCompleted",
     type : "safe",
     action : "read",
@@ -151,9 +130,7 @@ function loadTrans() {
     inputs : [
       {name : "completeFlag", prompt : "Complete", value : "true", readOnly:true}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "taskFormListByTitle",
     type : "safe",
     action : "read",
@@ -163,9 +140,7 @@ function loadTrans() {
     inputs : [
       {name : "title", prompt : "Title", value : ""}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "taskFormListByUser",
     type : "safe",
     action : "read",
@@ -175,9 +150,7 @@ function loadTrans() {
     inputs : [
       {name : "assignedUser", prompt : "User", value : ""}
     ]
-  });
-  
-  trans.push({
+  }, {
     name : "taskLinkItem",
     type : "safe",
     action : "read",
@@ -187,10 +160,9 @@ function loadTrans() {
     html : {
       className : "item link ui basic blue button"
     }
-  });
-  
+  },
   // add task
-  trans.push({
+  {
     name : "taskFormAdd",
     type : "unsafe",
     action : "append",
@@ -205,10 +177,9 @@ function loadTrans() {
         suggest:[{value:"false"},{value:"true"}] 
       }
     ]
-  });
-
+  },
   // edit task
-  trans.push({
+  {
     name : "taskFormEditPost",
     type : "unsafe",
     action : "append",
@@ -224,10 +195,9 @@ function loadTrans() {
         suggest:[{value:"false"},{value:"true"}] 
       }
     ]
-  });
-
+  },
   // remove task
-  trans.push({
+  {
     name : "taskFormRemovePost",
     type : "unsafe",
     action : "append",
@@ -237,10 +207,9 @@ function loadTrans() {
     inputs : [
       {name : "id", prompt : "ID", readOnly : true}
     ]
-  });
-
+  },
   // mark task completed
-  trans.push({
+  {
     name : "taskCompletedLink",
     type : "safe",
     action : "read",
@@ -250,8 +219,7 @@ function loadTrans() {
     html : {
       className : "item action ui basic blue button"
     }
-  });
-  trans.push({
+  }, {
     name : "taskCompletedForm",
     type : "unsafe",
     action : "append",
@@ -259,11 +227,9 @@ function loadTrans() {
     target : "item completed edit post form",
     prompt : "Mark Completed",
     inputs : [
-      {name: "id", prompt:"ID", readOnly:true},
+      {name: "id", prompt:"ID", readOnly:true}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "taskAssignLink",
     type : "safe",
     action : "read",
@@ -273,8 +239,7 @@ function loadTrans() {
     html : {
       className : "item action ui basic blue button"
     }
-  });
-  trans.push({
+  }, {
     name : "taskAssignForm",
     type : "unsafe",
     action : "append",
@@ -285,12 +250,11 @@ function loadTrans() {
       {name: "id", prompt:"ID", readOnly:true},
       {name: "assignedUser", prompt:"User Nickname", value:"", requried:true, suggest:{related:"userlist", value:"nick",text:"nick"}, type:"select"}
     ]
-  });
-
+  },
   /************************************
   USERS
   *************************************/
-  trans.push({
+ {
     name : "userLinkItem",
     type : "safe",
     action : "read",
@@ -300,9 +264,7 @@ function loadTrans() {
     html : {
       className : "item link ui basic blue button"
     }
-  });
-
-  trans.push({
+  }, {
     name : "userTasksLink",
     type : "safe",
     action : "read",
@@ -312,9 +274,7 @@ function loadTrans() {
     html : {
       className : "item link ui basic blue button"
     }
-  });
-
-  trans.push({
+  }, {
     name : "userFormListByNick",
     type : "safe",
     action : "read",
@@ -324,9 +284,7 @@ function loadTrans() {
     inputs : [
       {name : "nick", prompt : "Nickname", value : ""}
     ]
-  });
-  
-  trans.push({
+  }, {
     name : "userFormListByName",
     type : "safe",
     action : "read",
@@ -336,9 +294,7 @@ function loadTrans() {
     inputs : [
       {name : "name", prompt : "Name", value : ""}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "userFormAdd",
     type : "unsafe",
     action : "append",
@@ -350,9 +306,7 @@ function loadTrans() {
       {name : "name", prompt : "Full Name", value: "", required: true}, 
       {name : "password", prompt : "Password", value: "", required: true, pattern: "[a-zA-Z0-9!@#$%^&*-]+"}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "userFormEditPost",
     type : "unsafe",
     action : "append",
@@ -363,9 +317,7 @@ function loadTrans() {
       {name : "nick", prompt : "Nickname", value : "", readOnly: true},
       {name : "name", prompt : "Full Name", value : ""}
     ]
-  });
-
-  trans.push({
+  }, {
     name : "userLinkChangePW",
     type : "safe",
     action : "read",
@@ -375,8 +327,7 @@ function loadTrans() {
     html : {
       className : "item link ui basic blue button"
     }
-  });
-  trans.push({
+  }, {
     name : "userFormChangePWPost",
     type : "unsafe",
     action : "append",
@@ -389,12 +340,7 @@ function loadTrans() {
       {name : "newpass", prompt : "New Password", value : "", required: true, pattern: "[a-zA-Z0-9!@#$%^&*-]+"},
       {name : "checkpass", prompt : "Confirm New Password", value : "", required: true, pattern: "[a-zA-Z0-9!@#$%^&*-]+"}
     ]
-  });
-
-  // return complete 
-  // design-time WSTL
-  return trans;
-  
+  }];
 }
 
 // EOF
