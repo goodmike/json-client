@@ -7,31 +7,30 @@
  *******************************************************/
 
 // handles HTTP resource operations 
-var qs = require('querystring');
-var wstl = require('./../wstl.js');
-var utils = require('./utils.js');
+const qs = require('querystring');
+const wstl = require('./../wstl.js');
+const utils = require('./utils.js');
 
-var components = {};
-components.user = require('./../components/user-component.js');
+const components = {
+  user: require('./../components/user-component.js')
+};
 
-var content = "";
-content += '<div class="ui segment">';
-content += '<h3>Manage your TPS Users here.</h3>';
-content += '<p>You can do the following:</p>';
-content += '<ul>';
-content += '<li>Add and Edit users</li>';
-content += '<li>Change the password, view the tasks assigned to a user</li>';
-content += '<li>Filter the list by Nickname or FullName</li>';
-content += '</ul>';
-content += '</div>';
+const content =
+  `<div class="ui segment">
+    <h3>Manage your TPS Users here.</h3>
+    <p>You can do the following:</p>
+    <ul>
+      <li>Add and Edit users</li>
+      <li>Change the password, view the tasks assigned to a user</li>
+      <li>Filter the list by Nickname or FullName</li>
+    </ul>
+  </div>`
 
 module.exports = main;
 
 // http-level actions for users
 function main(req, res, parts, respond) {
-  var flag;
   
-  flag=false;
   switch (req.method) {
     case 'GET':
       /* Web API no longer serves up passwordChange page
@@ -40,13 +39,13 @@ function main(req, res, parts, respond) {
         sendPasswordPage(req, res, respond, parts[2]);
       }
       */
-      if(flag===false && parts[1] && parts[1].indexOf('?')===-1) {
-        flag = true;
+      if(parts[1] && parts[1].indexOf('?')===-1) {
         sendItemPage(req, res, respond, parts[1]);
       }
-      if(flag===false) {
+      else {
         sendListPage(req, res, respond);
       }
+      break;
     case 'POST':
       if(parts[1] && parts[1].indexOf('?')===-1) {
         switch(parts[1].toLowerCase()) {
@@ -86,167 +85,157 @@ function main(req, res, parts, respond) {
 }
 
 function sendListPage(req, res, respond) {
-  var doc, coll, root, q, qlist, code;
-
-  root = '//'+req.headers.host;
-  coll = [];
-  data = [];
+  const root = '//'+req.headers.host;
   
   // parse any filter on the URL line
   // or just pull the full set
-  q = req.url.split('?');
+  let data = [];
+  const q = req.url.split('?');
   if(q[1]!==undefined) {
-    qlist = qs.parse(q[1]);
-    data = components.user('filter', qlist);
+    data = components.user('filter', qs.parse(q[1]));
   }
   else {
     data = components.user('list');
   }
-        
-  // top-level links
-  wstl.append({name:"homeLink",href:"/home/",
-    rel:["collection","/rels/home"],root:root}, coll);
-  wstl.append({name:"taskLink",href:"/task/",
-    rel:["collection","/rels/task"],root:root},coll); 
-  wstl.append({name:"userLink",href:"/user/",
-    rel:["collection","rels/user"],root:root},coll);
-
-  // item actions
-  wstl.append({name:"userLinkItem",href:"/user/{key}",
-    rel:["item","/rels/item"],root:root},coll);
-  wstl.append({name:"userLinkChangePW",href:"/user/pass/{key}",
-    rel:["edit","/rels/edit"],root:root},coll);
-  wstl.append({name:"userTasksLink",href:"/task/?assignedUser={key}",
-    rel:["collection","/rels/tasksByUser"],root:root},coll);
   
-  // add template
-  wstl.append({name: "userFormAdd",href:"/user/",
-    rel:["create-form","/rels/userAdd"],root:root},coll);
+  const coll = [
+    // top-level links
+    {name:"homeLink",href:"/home/",
+      rel:["collection","/rels/home"],root:root},
+    {name:"taskLink",href:"/task/",
+      rel:["collection","/rels/task"],root:root},
+    {name:"userLink",href:"/user/",
+      rel:["collection","rels/user"],root:root},
 
-  // list queries
-  wstl.append({name:"userFormListByNick",href:"/user/",
-    rel:["search","/rels/usersByNick"],root:root},coll);
-  wstl.append({name:"userFormListByName",href:"/user/",
-    rel:["search","/rels/usersByName"],root:root},coll);
+    // item actions
+    {name:"userLinkItem",href:"/user/{key}",
+      rel:["item","/rels/item"],root:root},
+    {name:"userLinkChangePW",href:"/user/pass/{key}",
+      rel:["edit","/rels/edit"],root:root},
+    {name:"userTasksLink",href:"/task/?assignedUser={key}",
+      rel:["collection","/rels/tasksByUser"],root:root},
 
+    // add template
+    {name: "userFormAdd",href:"/user/",
+      rel:["create-form","/rels/userAdd"],root:root},
+
+    // list queries
+    {name:"userFormListByNick",href:"/user/",
+      rel:["search","/rels/usersByNick"],root:root},
+    {name:"userFormListByName",href:"/user/",
+      rel:["search","/rels/usersByName"],root:root}
+  ];
   // compose and send graph 
-  doc = {};
-  doc.title = "TPS - Users";
-  doc.actions = coll;
-  doc.data =  data;
-  doc.content = content;
+  let doc = {
+    title: "TPS - Users",
+    actions: coll,
+    data: data,
+    content: content
+  };
   respond(req, res, {code:200, doc:{user:doc}});
 }
 
 function sendItemPage(req, res, respond, id) {
-  var item, doc, coll, root;
   
-  root = '//'+req.headers.host;
-  coll = [];
-  data = [];
+  const root = '//'+req.headers.host;
   
   // load data item
-  item = components.user('read',id);
-  if(item.length===0) {
-    respond(req, res, utils.errorResponse(req, res, "File Not Found", 404));
+  const item = components.user('read',id);
+  if (item.length === 0) {
+    return respond(req, res, utils.errorResponse(req, res, "File Not Found", 404));
   }
-  else {
-    data = item;
 
+  const coll = [
     // top-level links
-    tran = wstl.append({name:"homeLink",href:"/home/",
-      rel:["collection","/rels/home"],root:root}, coll);
-    tran = wstl.append({name:"taskLink",href:"/task/",
-      rel:["collection","/rels/task"],root:root},coll); 
-    tran = wstl.append({name:"userLink",href:"/user/",
-      rel:["collection","rels/user"],root:root},coll);
+    {name:"homeLink",href:"/home/",
+      rel:["collection","/rels/home"],root:root},
+    {name:"taskLink",href:"/task/",
+      rel:["collection","/rels/task"],root:root}, 
+    {name:"userLink",href:"/user/",
+      rel:["collection","rels/user"],root:root},
     
     // item actions
-    wstl.append({name:"userLinkItem",href:"/user/{key}",
-      rel:["item","/rels/item"],root:root},coll);
-    wstl.append({name:"userLinkChangePW",href:"/user/pass/{key}",
-      rel:["edit","/rels/edit"],root:root},coll);
-    wstl.append({name:"userTasksLink",href:"/task/?assignedUser={key}",
-      rel:["collection","/rels/tasksByUser"],root:root},coll);
+    {name:"userLinkItem",href:"/user/{key}",
+      rel:["item","/rels/item"],root:root},
+    {name:"userLinkChangePW",href:"/user/pass/{key}",
+      rel:["edit","/rels/edit"],root:root},
+    {name:"userTasksLink",href:"/task/?assignedUser={key}",
+      rel:["collection","/rels/tasksByUser"],root:root},
     
     // item forms
-    tran = wstl.append({name:"userFormEdit",href:"/user/{key}",
-      rel:["edit-form","/rels/edit"],root:root},coll);
-    tran = wstl.append({name:"userFormEditPost",href:"/user/update/{key}",
-      rel:["edit-form","/rels/edit"],root:root},coll);
-
-    // compose and send graph 
-    doc = {};
-    doc.title = "TPS - Users";
-    doc.actions = coll;
-    doc.data =  data;
-    doc.content = content;
-    respond(req, res, {code:200, doc:{user:doc}});        
-  }
+    {name:"userFormEdit",href:"/user/{key}",
+      rel:["edit-form","/rels/edit"],root:root},
+    {name:"userFormEditPost",href:"/user/update/{key}",
+      rel:["edit-form","/rels/edit"],root:root}
+  ];
+  // compose and send graph 
+  const doc = {
+    title: "TPS - Users",
+    actions: coll,
+    data: item,
+    content: content
+  };
+  respond(req, res, {code:200, doc:{user:doc}});
 }
 
 function sendPasswordPage(req, res, respond, id) {
-  var item, doc, coll, root;
-  
-  root = '//'+req.headers.host;
-  coll = [];
-  data = [];
+  const root = '//'+req.headers.host;
   
   // load data item
-  item = components.user('read',id);
+  const item = components.user('read',id);
   if(item.length===0) {
-    respond(req, res, utils.errorResponse(req, res, "File Not Found", 404));
+    return respond(req, res, utils.errorResponse(req, res, "File Not Found", 404));
   }
-  else {
-    data = item;
 
+  const coll = [
     // top-level links
-    tran = wstl.append({name:"homeLink",href:"/home/",
-      rel:["collection","/rels/home"],root:root}, coll);
-    tran = wstl.append({name:"taskLink",href:"/task/",
-      rel:["collection","/rels/task"],root:root},coll); 
-    tran = wstl.append({name:"userLink",href:"/user/",
-      rel:["collection","rels/user"],root:root},coll);
+    {name:"homeLink",href:"/home/",
+      rel:["collection","/rels/home"],root:root},
+    {name:"taskLink",href:"/task/",
+      rel:["collection","/rels/task"],root:root}, 
+    {name:"userLink",href:"/user/",
+      rel:["collection","rels/user"],root:root},
     
     // item actions
-    wstl.append({name:"userLinkItem",href:"/user/{key}",
-      rel:["item","/rels/item"],root:root},coll);
-    wstl.append({name:"userLinkChangePW",href:"/user/pass/{key}",
-      rel:["edit","/rels/edit"],root:root},coll);
-    wstl.append({name:"userTasksLink",href:"/task/?assignedUser={key}",
-      rel:["collection","/rels/tasksByUser"],root:root},coll);
+    {name:"userLinkItem",href:"/user/{key}",
+      rel:["item","/rels/item"],root:root},
+    {name:"userLinkChangePW",href:"/user/pass/{key}",
+      rel:["edit","/rels/edit"],root:root},
+    {name:"userTasksLink",href:"/task/?assignedUser={key}",
+      rel:["collection","/rels/tasksByUser"],root:root},
     
     // item forms
-    tran = wstl.append({name:"userFormChangePW",href:"/user/pass/{key}",
-      rel:["edit-form","/rels/edit"],root:root},coll);
-    tran = wstl.append({name:"userFormChangePWPost",href:"/user/pass/{key}",
-      rel:["edit-form","/rels/edit"],root:root},coll);
-
+    {name:"userFormChangePW",href:"/user/pass/{key}",
+      rel:["edit-form","/rels/edit"],root:root},
+    {name:"userFormChangePWPost",href:"/user/pass/{key}",
+      rel:["edit-form","/rels/edit"],root:root}
+  ];
+  
     // compose and send graph 
-    doc = {};
-    doc.title = "TPS - Users";
-    doc.actions = coll;
-    doc.data =  data;
-    doc.content = content;
-    respond(req, res, {code:200, doc:{user:doc}});        
-  }
+  const doc = {
+    title: "TPS - Users",
+    actions: coll,
+    data: item,
+    content: content
+  };
+    
+  respond(req, res, {code:200, doc:{user:doc}});
 }
 
 // handle add user 
 function addUserItem(req, res, respond) {
-  var body, doc, msg;
 
-  body = '';
-  
   // collect body
+  let body = '';
   req.on('data', function(chunk) {
     body += chunk;
   });
 
   // process body
   req.on('end', function() {
+    let doc;
     try {
-      msg = utils.parseBody(body, req.headers["content-type"]);
+      const msg = utils.parseBody(body, req.headers["content-type"]);
       if(!msg.nick || msg.nick===null || msg.nick==="") {
         doc = utils.errorResponse(req, res, "Missing Nick", 400);
       }
@@ -275,19 +264,18 @@ function addUserItem(req, res, respond) {
 
 // handle update user
 function updateUser(req, res, respond, id) {
-  var body, doc, msg;
 
-  body = '';
-  
   // collect body
+  let body = '';
   req.on('data', function(chunk) {
     body += chunk;
   });
 
   // process body
   req.on('end', function() {
+    let doc;
     try {
-      msg = utils.parseBody(body, req.headers["content-type"]);
+      const msg = utils.parseBody(body, req.headers["content-type"]);
       doc = components.user('update', id, msg);
       if(doc && doc.type==='error') {
         doc = utils.errorResponse(req, res, doc.message, doc.code);
@@ -311,19 +299,18 @@ function updateUser(req, res, respond, id) {
 
 //handle change password
 function changePassword(req, res, respond, id) {
-  var body, doc, msg;
-
-  body = '';
   
   // collect body
+  let body = '';
   req.on('data', function(chunk) {
     body += chunk;
   });
 
   // process body
   req.on('end', function() {
+    let doc;
     try {
-      msg = utils.parseBody(body, req.headers["content-type"]);
+      const msg = utils.parseBody(body, req.headers["content-type"]);
       doc = components.user('change-password', id, msg);
       if(doc && doc.type==='error') {
         doc = utils.errorResponse(req, res, doc.message, doc.code);
